@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メッセージ投稿アプリ</title>
+  <style>
+    .item {
+      border: 1px solid black;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    .reply {
+      border: 1px solid black;
+      padding: 10px;
+      margin: 10px 0;
+      background-color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>メッセージ投稿アプリ</h1>
+  <p>名前とメッセージを入力して投稿ボタンを押してください。画像もアップロードできます。</p>
+  <div>
+    <input type="text" id="nameInput" placeholder="名前" />
+    <input type="text" id="messageInput" placeholder="メッセージ" />
+    <input type="file" id="imageInput" accept="image/*" />
+    <button id="postButton">投稿</button>
+  </div>
+  <div id="items"></div>
+  <script>
+    let items = [];
+    let replies = {};
+
+    const postButton = document.getElementById('postButton');
+    const nameInput = document.getElementById('nameInput');
+    const messageInput = document.getElementById('messageInput');
+    const imageInput = document.getElementById('imageInput');
+    const itemsDiv = document.getElementById('items');
+
+    postButton.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      const message = messageInput.value.trim();
+      const image = imageInput.files[0];
+
+      if (!name || !message) return;
+
+      const item = {
+        id: Date.now(),
+        name,
+        message,
+        image,
+        timestamp: new Date().toLocaleString()
+      };
+      items.unshift(item);
+      renderItems();
+      nameInput.value = '';
+      messageInput.value = '';
+      imageInput.value = '';
+    });
+
+    function renderItems() {
+      itemsDiv.innerHTML = '';
+      items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.classList.add('item');
+        itemDiv.innerHTML = `
+          <p>投稿日時: ${item.timestamp}</p>
+          <p>名前: ${item.name}</p>
+          <p>メッセージ: ${item.message}</p>
+          ${item.image ? `<img src="${URL.createObjectURL(item.image)}" alt="アップロードされた画像" style="max-width: 100%;" />` : ''}
+          <button data-id="${item.id}" class="deleteButton">削除</button>
+          <button data-id="${item.id}" class="replyButton">返信</button>
+          <div class="replies" data-id="${item.id}"></div>
+        `;
+        itemsDiv.appendChild(itemDiv);
+      });
+      document.querySelectorAll('.deleteButton').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const id = parseInt(e.target.dataset.id);
+          items = items.filter(item => item.id          !== id);
+          renderItems();
+        });
+      });
+
+      document.querySelectorAll('.replyButton').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const id = parseInt(e.target.dataset.id);
+          const repliesDiv = document.querySelector(`.replies[data-id="${id}"]`);
+
+          if (repliesDiv.innerHTML === '') {
+            const replyInput = document.createElement('div');
+            replyInput.innerHTML = `
+              <input type="text" class="replyNameInput" placeholder="名前" />
+              <input type="text" class="replyMessageInput" placeholder="メッセージ" />
+              <button data-id="${id}" class="replyPostButton">投稿</button>
+            `;
+            repliesDiv.appendChild(replyInput);
+
+            document.querySelector(`.replyPostButton[data-id="${id}"]`).addEventListener('click', () => {
+              const replyName = repliesDiv.querySelector('.replyNameInput').value.trim();
+              const replyMessage = repliesDiv.querySelector('.replyMessageInput').value.trim();
+
+              if (!replyName || !replyMessage) return;
+
+              const reply = {
+                id: Date.now(),
+                name: replyName,
+                message: replyMessage
+              };
+
+              if (!replies[id]) {
+                replies[id] = [];
+              }
+
+              replies[id].push(reply);
+              renderReplies(repliesDiv, id);
+            });
+          } else {
+            repliesDiv.innerHTML = '';
+          }
+        });
+      });
+    }
+
+    function renderReplies(repliesDiv, id) {
+      repliesDiv.innerHTML = '';
+
+      if (!replies[id]) return;
+
+      replies[id].forEach(reply => {
+        const replyDiv = document.createElement('div');
+        replyDiv.classList.add('reply');
+        replyDiv.innerHTML = `
+          <p>名前: ${reply.name}</p>
+          <p>メッセージ: ${reply.message}</p>
+          <button data-parent-id="${id}" data-id="${reply.id}" class="deleteReplyButton">削除</button>
+        `;
+        repliesDiv.appendChild(replyDiv);
+      });
+
+      document.querySelectorAll('.deleteReplyButton').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const parentId = parseInt(e.target.dataset.parentId);
+          const id = parseInt(e.target.dataset.id);
+          replies[parentId] = replies[parentId].filter(reply => reply.id !== id);
+          renderReplies(repliesDiv, parentId);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
+
